@@ -231,36 +231,36 @@
     function explain(sceneNumber, add_explain) {
         messages = {
             1: `This visualization tool is for house-rental business analysis of South Korea.
-            (In here, house-rental business stands for a business model that buying or building a house and rent it to tenants. It makes money from their monthly/annual rent.)<br/><br/>
-            To operate house-rental business successfully, we have to invest the region where overall rent is stably increasing.
+            (In here, the house-rental business stands for a business model that buying or building a house and rent it to tenants. It makes money from their monthly/annual rent.)<br/><br/>
+            To operate the house-rental business successfully, we have to invest the region where overall rent is stably increasing.
             If there was a bubble in the house-rent market temporarily and house rent price is dropped,
             house-rental business can be seriously damaged. Therefore, it is important to properly measure if rent price has some bubble or not. (click next)
             `,
             2: `Here is an overall rent price index of South Korea in all regions.<br/><br/>
             As we can see in this observation, rent price has been increasing steadily.<br/><br/>
             `,
-            3: `However, sometimes rent price can fluctuate and it can takes several years to recover its previous status.<br/><br/>
-            This dropped years can cause serious business cash flow problems, so we have to avoid it as much as possible.<br/><br/>
-            Then, how can we measure if current rent price is too high or not? Is there any factor can justify current rent price index?
+            3: `However, sometimes rent price can fluctuate and it can take several years to recover its previous status.<br/><br/>
+            These dropped years can cause serious business cash flow problems, so we have to avoid it as much as possible.<br/><br/>
+            Then, how can we measure if current rent price is too high or not? Is there any factor that can justify the current rent price index?
             `,
             4: `In economics, <a href="https://en.wikipedia.org/wiki/Money_supply#Empirical_measures_in_the_United_States_Federal_Reserve_System" target="_blank">M2</a> is
             a broader measure of money supply. By looking at this M2 index, we can see how much money is flowing in the country.
-            Theoretically, rent price reflects money flow in the market(which means, rent price is keep rising because of the inflation).<br/><br/>
-            As we can see, in the chart, Rent price and M2 follows similar trends. But it's not exactly similar.
-            How can we develop M2 index more and use it as a measurement of rent price?
+            Theoretically, rent price reflects the money flow in the market(which means, rent price is rising because of inflation).<br/><br/>
+            As we can see, in the chart, Rent price and M2 follow similar trends. But it's not exactly similar.
+            How can we develop the M2 index more and use it as a measurement of rent price?
             `,
             5: `According to <a href="https://en.wikipedia.org/wiki/Equation_of_exchange" target="_blank">Fisher's Equation of exchange</a>,
-            money supply does not make price increase directly, because velocity of money can be decreasing.<br/><br/>
-            Thus, to properly understand relationship between rent price and M2, it is better to build a regression model and make a prediction based on that.<br/><br/>
-            On the right, I made a prediction model R = -0.00664M^2 + 1.822M + 14.487, which R is rent price index and M is M2 index.
+            money supply does not make price increase directly, because the velocity of money can be decreased.<br/><br/>
+            Thus, to properly understand the relationship between rent price and M2, it is better to build a regression model and make a prediction based on that.<br/><br/>
+            On the right, I made a prediction model R = -0.00664M^2 + 1.822M + 14.487, where R is rent price index and M is M2 index.
             `,
             6: `Using this model-based prediction line, we can see the period when rent price
-            is overvalued(dangerous to make an investment) and when is the periods that rent price is undervalued(when is a good timing to make an investment).<br/><br/>
+            is overvalued(dangerous to make an investment) and when is the period that rent price is undervalued(which is a good timing to make an investment).<br/><br/>
             Let's see this analysis in more specific regions. How about Seoul, the capital of South Korea?
             `,
             7: `As we can see, Seoul's rent price becoming too high compare to money supply in the market.
             It seems it's not good timing to start a house rental business in Seoul.<br/><br/>
-            Then how about other cities? Now, it's your turn, find cities where looks good timing to start a business.
+            Then how about other cities? Now, it's your turn. Find cities where looks good timing to start a business.
             `,
             999: ""
         }
