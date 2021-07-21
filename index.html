@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <script src='https://d3js.org/d3.v5.min.js'></script>
+    <style>
+        html {
+            font-family: sans-serif;
+            width: 1024px;
+        }
+
+        .header {
+            background-color: #2f2d2f;
+            color: #ffffff;
+            padding: 15px;
+        }
+
+        .main {
+            height: 450px;
+        }
+
+        .widLeft {
+            width: 33.33%;
+        }
+
+        .widRight {
+            width: 66.66%;
+        }
+
+        [class*="wid"] {
+            padding: 14px;
+            float: left;
+        }
+
+        .nav {
+            height: 100%;
+            background-color: #d6d6d6;
+        }
+
+        .chart {
+            height: 100%;
+            background-color: #f7f7f7;
+        }
+
+        .buttons {
+            text-align: center;
+        }
+
+        .cityButtons {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .storyButton {
+            text-align: center;
+            padding: 10px 20px;
+            margin: 5px 10px;
+        }
+
+        .cityButton {
+            text-align: center;
+            margin: 5px;
+            width: 47%;
+            padding: 9px;
+        }
+
+        .cityButtonsHeader {
+            font-size: 22px;
+        }
+
+        .cityButtonsContainer {
+            text-align: center;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+
+
+<body onload='init()'>
+<div class="content">
+    <div class="header">
+        <h1>Data visualization project: Finding undervalued region</h1>
+    </div>
+
+    <div class="main">
+        <div class="nav widLeft">
+            <div class="buttons">
+                <button class="storyButton" id="prevButton" onclick="prev_scene()">Prev</button>
+                <button class="storyButton" id="nextButton" onclick="next_scene()">Next</button>
+            </div>
+            <p class="explain" style="text-align: justify;"></p>
+            <div class="cityButtonsContainer">
+                <p1 class="cityButtonsHeader"></p1>
+                <div class="cityButtons"></div>
+            </div>
+            <div class="explore"></div>
+        </div>
+
+        <div id="chart_area" class="chart widRight"></div>
+    </div>
+</div>
+
+
+<script>
+    let data;
+    let x, y, svg, xAxis, yAxis;
+    let margin, width, height;
+    let sceneNumber;
+    let tooltip, mouseEffectGroup;
+
+    async function init() {
+        d3.select("#prevButton").property("disabled", true);
+        data = await d3.csv('https://sp37-illinois.github.io/final_data.csv');
+
+        margin = {top: 65, bottom: 60, left: 90, right: 30};
+        width = 460 - margin.left - margin.right;
+        height = 400 - margin.top - margin.bottom;
+
+        // initialize svg
+        svg = d3.select("#chart_area")
+            .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        // initialize X axis and Y axis
+        x = d3.scaleTime().range([0, width]);
+        xAxis = d3.axisBottom().scale(x).ticks(10);
+        svg.append("g")
+            .attr("transform", "translate(0," + height + ")")
+            .attr("class", "xAxis");
+        y = d3.scaleLinear().range([height, 0]);
+        yAxis = d3.axisLeft().scale(y);
+        svg.append("g")
+            .attr("class", "yAxis");
+
+        // initialize text area
+        svg.append("g").attr("class", "chartTitle").append("text");
+        svg.append("g").attr("class", "xAxisTitle").append("text");
+        svg.append("g").attr("class", "yAxisTitle").append("text");
+
+        // initialize legend area
+        svg.append("g").attr("class", "legend");
+        var legend1 = svg.selectAll('.legend').append("g").attr("class", "legend1").style("opacity", "0")
+        legend1.append("circle").attr("class", "legendCircle1").attr("cx", 20).attr("cy", 20).attr("r", 5).style("fill", "steelblue")
+        legend1.append("text").attr("class", "legendText1").attr("x", 30).attr("y", 21).text("Rent price index").style("font-size", "13px").attr("alignment-baseline", "middle");
+
+        var legend2 = svg.selectAll('.legend').append("g").attr("class", "legend2").style("opacity", "0")
+        legend2.append("circle").attr("class", "legendCircle2").attr("cx", 20).attr("cy", 40).attr("r", 5).style("fill", "grey")
+        legend2.append("text").attr("class", "legendText2").attr("x", 30).attr("y", 41).text("M2 index").style("font-size", "13px").attr("alignment-baseline", "middle");
+
+        var legend3 = svg.selectAll('.legend').append("g").attr("class", "legend3").style("opacity", "0")
+        legend3.append("circle").attr("class", "legendCircle3").attr("cx", 20).attr("cy", 40).attr("r", 5).style("fill", "orange")
+        legend3.append("text").attr("class", "legendText3").attr("x", 30).attr("y", 41).text("Prediction").style("font-size", "13px").attr("alignment-baseline", "middle");
+
+        // initialize tooltip div & mouse effect group
+        tooltip = d3.select("#chart_area").append("div")
+            .attr('id', 'tooltip')
+            .style('position', 'absolute')
+            .style("background-color", "rgb(234, 234, 234)")
+            .style("border", "#9a9a9a")
+            .style("border-width", "thin")
+            .style("border-style", "dotted")
+            .style('padding', "5px")
+            .style('display', 'none')
+        mouseEffectGroup = svg.append('g').attr("class", "mouseEffectGroup");
+        mouseEffectGroup.append("path") // vertical line
+            .attr("class", "verticalLine")
+            .style("stroke-width", "1px")
+            .style("stroke", "#A9A9A9")
+            .style("opacity", "0");
+        mouseEffectGroup.append("svg:rect")
+            .attr("id", "tooltipArea")
+
+        sceneNumber = 1;
+        prepareExplainScenes(1);
+    }
+
+    function next_scene() {
+        if (sceneNumber < 7) {
+            d3.select("#prevButton").property("disabled", false);
+            sceneNumber = sceneNumber + 1;
+            if (sceneNumber >= 7) {
+                d3.select("#nextButton").property("disabled", true);
+            }
+            prepareExplainScenes(sceneNumber);
+        }
+    }
+
+    function prev_scene() {
+        if (sceneNumber > 1) {
+            d3.select("#nextButton").property("disabled", false);
+            sceneNumber = sceneNumber - 1;
+            if (sceneNumber <= 1) {
+                d3.select("#prevButton").property("disabled", true);
+            }
+            prepareExplainScenes(sceneNumber);
+        }
+    }
+
+    function prepareExplainScenes(sceneNumber) {
+        var additional_params = {
+            1: {"city": "Total", "draw_rent_index": false, "draw_m2": false, "draw_prediction": false, "add_annotation": false, "add_explain": true},
+            2: {"city": "Total", "draw_rent_index": true, "draw_m2": false, "draw_prediction": false, "add_annotation": false, "add_explain": true},
+            3: {"city": "Total", "draw_rent_index": true, "draw_m2": false, "draw_prediction": false, "add_annotation": true, "add_explain": true},
+            4: {"city": "Total", "draw_rent_index": true, "draw_m2": true, "draw_prediction": false, "add_annotation": false, "add_explain": true},
+            5: {"city": "Total", "draw_rent_index": true, "draw_m2": false, "draw_prediction": true, "add_annotation": false, "add_explain": true},
+            6: {"city": "Total", "draw_rent_index": true, "draw_m2": false, "draw_prediction": true, "add_annotation": true, "add_explain": true},
+            7: {"city": "Seoul", "draw_rent_index": true, "draw_m2": false, "draw_prediction": true, "add_annotation": true, "add_explain": true}
+        };
+        scene(sceneNumber,
+            additional_params[sceneNumber]['city'],
+            additional_params[sceneNumber]['draw_rent_index'],
+            additional_params[sceneNumber]['draw_m2'],
+            additional_params[sceneNumber]['draw_prediction'],
+            additional_params[sceneNumber]['add_annotation'],
+            additional_params[sceneNumber]['add_explain']);
+    }
+
+    function scene(sceneNumber, city, draw_rent_index, draw_m2, draw_prediction, add_annotation, add_explain) {
+        sub_data = extractSubData(city);
+        drawChart(sub_data, city, draw_rent_index, draw_m2, draw_prediction);
+        explain(sceneNumber, add_explain);
+        addAnotation(sceneNumber, add_annotation);
+    }
+
+    function explain(sceneNumber, add_explain) {
+        messages = {
+            1: `This visualization tool is for house-rental business analysis of South Korea.
+            (In here, house-rental business stands for a business model that buying or building a house and rent it to tenants. It makes money from their monthly/annual rent.)<br/><br/>
+            To operate house-rental business successfully, we have to invest the region where overall rent is stably increasing.
+            If there was a bubble in the house-rent market temporarily and house rent price is dropped,
+            house-rental business can be seriously damaged. Therefore, it is important to properly measure if rent price has some bubble or not. (click next)
+            `,
+            2: `Here is an overall rent price index of South Korea in all regions.<br/><br/>
+            As we can see in this observation, rent price has been increasing steadily.<br/><br/>
+            `,
+            3: `However, sometimes rent price can fluctuate and it can takes several years to recover its previous status.<br/><br/>
+            This dropped years can cause serious business cash flow problems, so we have to avoid it as much as possible.<br/><br/>
+            Then, how can we measure if current rent price is too high or not? Is there any factor can justify current rent price index?
+            `,
+            4: `In economics, <a href="https://en.wikipedia.org/wiki/Money_supply#Empirical_measures_in_the_United_States_Federal_Reserve_System" target="_blank">M2</a> is
+            a broader measure of money supply. By looking at this M2 index, we can see how much money is flowing in the country.
+            Theoretically, rent price reflects money flow in the market(which means, rent price is keep rising because of the inflation).<br/><br/>
+            As we can see, in the chart, Rent price and M2 follows similar trends. But it's not exactly similar.
+            How can we develop M2 index more and use it as a measurement of rent price?
+            `,
+            5: `According to <a href="https://en.wikipedia.org/wiki/Equation_of_exchange" target="_blank">Fisher's Equation of exchange</a>,
+            money supply does not make price increase directly, because velocity of money can be decreasing.<br/><br/>
+            Thus, to properly understand relationship between rent price and M2, it is better to build a regression model and make a prediction based on that.<br/><br/>
+            On the right, I made a prediction model R = -0.00664M^2 + 1.822M + 14.487, which R is rent price index and M is M2 index.
+            `,
+            6: `Using this model-based prediction line, we can see the period when rent price
+            is overvalued(dangerous to make an investment) and when is the periods that rent price is undervalued(when is a good timing to make an investment).<br/><br/>
+            Let's see this analysis in more specific regions. How about Seoul, the capital of South Korea?
+            `,
+            7: `As we can see, Seoul's rent price becoming too high compare to money supply in the market.
+            It seems it's not good timing to start a house rental business in Seoul.<br/><br/>
+            Then how about other cities? Now, it's your turn, find cities where looks good timing to start a business.
+            `,
+            999: ""
+        }
+        if (add_explain) {
+            d3.select(".explain").html(messages[sceneNumber]);
+            if (sceneNumber == 7) {
+                d3.select(".explore").append("button").attr("onclick", "start_explore()").html("Start exlore!");
+            } else {
+                d3.select(".explore").select("button").remove();
+            }
+        }
+    }
+
+    function addAnotation(sceneNumber, add_annotation) {
+        if (sceneNumber == 2) {
+            clearAnnotations(["annotation_1", "annotation_2", "annotation_3"]);
+        } else if (sceneNumber == 3) {
+            if (add_annotation) {
+                annotate("annotation_1", 125, 200, "dropping point", 80, 10, 22);
+                annotate("annotation_2", 193, 144, "dropping point", 40, 17, 35);
+                annotate("annotation_3", 310, 51, "dropping point", 60, 15, 25);
+            }
+        } else if (sceneNumber == 4) {
+            clearAnnotations(["annotation_1", "annotation_2", "annotation_3"]);
+        } else if (sceneNumber == 5) {
+            clearAnnotations(["annotation_4", "annotation_5", "annotation_6", "annotation_7"]);
+        } else if (sceneNumber == 6) {
+            if (add_annotation) {
+                annotate("annotation_4", 125, 200, "undervalued", 80, 10, 22);
+                annotate("annotation_5", 165, 162, "overvalued", 20, 30, 20);
+                annotate("annotation_6", 227, 125, "undervalued", 40, 25, 26);
+                annotate("annotation_7", 285, 70, "overvalued", 20, 25, 33);
+            }
+            clearAnnotations(["annotation_8"]);
+        } else if (sceneNumber == 7) {
+            if (add_annotation) {
+                annotate("annotation_8", 335, 30, "overvalued", 50, 40, 15);
+            }
+            clearAnnotations(["annotation_4", "annotation_5", "annotation_6", "annotation_7"]);
+        } else {
+            clearAnnotations(["annotation_1", "annotation_2", "annotation_3", "annotation_4",
+                "annotation_5", "annotation_6", "annotation_7", "annotation_8"]);
+        }
+    }
+
+    function clearAnnotations(ids) {
+        ids.forEach(annotation_id =>
+            svg.select("#" + annotation_id).transition().duration(1000).style("opacity", "0").remove()
+        );
+    }
+
+    function annotate(annotation_id, cx, cy, text, text_left, text_down, circle_size) {
+        text_size = 12;
+        svg.append("g").attr("class", "annotation").attr("id", annotation_id).style("opacity", "0");
+        svg.select("#" + annotation_id).append("circle").attr("class", "annotationCircle")
+            .attr("cx", cx).attr("cy", cy).attr("r", circle_size)
+            .style("stroke", "darkred").style("fill", "none").style("stroke-width", "1px");
+        svg.select("#" + annotation_id).append("line").attr("class", "annotationLine")
+            .attr("x1", cx).attr("y1", cy + circle_size)
+            .attr("x2", cx - (text_left / 2)).attr("y2", cy + circle_size + text_down)
+            .style("stroke", "darkred").style("stroke-width", "1px");
+        svg.select("#" + annotation_id).append("text").attr("class", "annotationText")
+            .attr("x", cx - text_left).attr("y", cy + circle_size + text_down + text_size).text(text)
+            .style("font-size", text_size.toString() + "px").style("fill", "darkred").attr("alignment-baseline", "middle");
+        svg.select("#" + annotation_id).transition().duration(1000).style("opacity", "1");
+    }
+
+    function start_explore() {
+        clearAnnotations(["annotation_8"]);
+        d3.selectAll(".storyButton").remove();
+        d3.select(".explain").html("");
+        d3.select(".explore").remove();
+
+        d3.select('.cityButtonsHeader').html("South Korea major cities");
+        d3.select('.cityButtons').append("button").html("Seoul").attr("onclick", "scene(999, 'Seoul', true, false, true, false, false)").attr("class", "cityButton");
+        d3.select('.cityButtons').append("button").html("Busan").attr("onclick", "scene(999, 'Busan', true, false, true, false, false)").attr("class", "cityButton");
+        d3.select('.cityButtons').append("button").html("Daegu").attr("onclick", "scene(999, 'Daegu', true, false, true, false, false)").attr("class", "cityButton");
+        d3.select('.cityButtons').append("button").html("Incheon").attr("onclick", "scene(999, 'Incheon', true, false, true, false, false)").attr("class", "cityButton");
+        d3.select('.cityButtons').append("button").html("Gwangju").attr("onclick", "scene(999, 'Gwangju', true, false, true, false, false)").attr("class", "cityButton");
+        d3.select('.cityButtons').append("button").html("Daejeon").attr("onclick", "scene(999, 'Daejeon', true, false, true, false, false)").attr("class", "cityButton");
+        d3.select('.cityButtons').append("button").html("Ulsan").attr("onclick", "scene(999, 'Ulsan', true, false, true, false, false)").attr("class", "cityButton");
+    }
+
+    function extractSubData(city) {
+        var parseDate = d3.timeParse("%Y. %m");
+        var sub_data = [];
+        data.forEach(function (d, i) {
+            if (!isNaN(parseFloat(d[city]))) {
+                sub_data.push({
+                    x: parseDate(d['Classification']),
+                    y: parseFloat(d[city]),
+                    m2: parseFloat(d['M2_index']),
+                    pred: parseFloat(d[city + '_pred'])
+                })
+            }
+        });
+        return sub_data;
+    }
+
+    function drawChart(sub_data, city, draw_rent_index, draw_m2, draw_prediction) {
+        if (city == 'Total') {
+            city = 'All cities';
+        }
+        svg.selectAll(".chartTitle").select("text").text(city).attr("x", width * 0.48).attr("y", -30).attr("font-weight", 700).style("font-size", "16px").attr("alignment-baseline", "middle")
+        // Create X axis and Y axis:
+        x.domain([
+            d3.min(sub_data, function (d) {return d.x}),
+            d3.max(sub_data, function (d) {return d.x})]);
+        svg.selectAll(".xAxis").transition().duration(1000).call(xAxis);
+        svg.selectAll(".xAxisTitle").select("text").text("Date").attr("x", width / 2.0).attr("y", height + 30).style("font-size", "14px").attr("alignment-baseline", "middle")
+        y.domain([
+            d3.min(sub_data, function (d) {return Math.min(d.y, d.pred)}) - 10,
+            d3.max(sub_data, function (d) {return Math.max(d.y, d.pred)}) + 10]);
+        svg.selectAll(".yAxis").transition().duration(1000).call(yAxis);
+        svg.selectAll(".yAxisTitle").select("text").text("Index value").attr("x", -height * 0.63).attr("y", -35).attr("transform", "rotate(-90)").style("font-size", "14px").attr("alignment-baseline", "middle")
+
+        if (draw_rent_index) {
+            var line_y = d3.line()
+                .x(function (d) {return x(d.x);})
+                .y(function (d) {return y(d.y);});
+            var lineGraphY = svg.selectAll(".lineGraphY")
+                .data([sub_data], function (d) {return d.x});
+            lineGraphY.enter().append("path")
+                .attr("class", "lineGraphY")
+                .merge(lineGraphY)
+                .transition()
+                .duration(1000)
+                .attr('d', line_y)
+                .attr("fill", "none")
+                .attr("stroke", "steelblue")
+                .attr("stroke-width", 2);
+            svg.select(".legend1").transition().duration(1000).style("opacity", "1");
+        } else {
+            svg.select(".legend1").transition().duration(1000).style("opacity", "0");
+            svg.selectAll(".lineGraphY").remove();
+        }
+
+        if (draw_m2) {
+            var line_m2 = d3.line()
+                .x(function (d) {return x(d.x);})
+                .y(function (d) {return y(d.m2);});
+            var lineGraphM2 = svg.selectAll(".lineGraphM2")
+                .data([sub_data], function (d) {return d.x});
+            lineGraphM2.enter().append("path")
+                .attr("class", "lineGraphM2")
+                .merge(lineGraphM2)
+                .transition()
+                .duration(1000)
+                .attr('d', line_m2)
+                .attr("fill", "none")
+                .attr("stroke", "grey")
+                .attr("stroke-width", 2);
+            svg.select(".legend2").transition().duration(1000).style("opacity", "1");
+        } else {
+            svg.select(".legend2").transition().duration(1000).style("opacity", "0");
+            svg.selectAll('.lineGraphM2').transition().duration(1000).attr("stroke-width", 0.0).remove();
+        }
+
+        if (draw_prediction) {
+            var line_pred = d3.line()
+                .x(function (d) {return x(d.x);})
+                .y(function (d) {return y(d.pred);});
+            var lineGraphPred = svg.selectAll(".lineGraphPred")
+                .data([sub_data], function (d) {return d.x});
+            lineGraphPred.enter().append("path")
+                .attr("class", "lineGraphPred")
+                .merge(lineGraphPred)
+                .transition()
+                .duration(1000)
+                .attr('d', line_pred)
+                .attr("fill", "none")
+                .attr("stroke", "orange")
+                .attr("stroke-width", 1.5);
+            svg.select(".legend3").transition().duration(1000).style("opacity", "1");
+        } else {
+            svg.select(".legend3").transition().duration(1000).style("opacity", "0");
+            svg.selectAll('.lineGraphPred').transition().duration(1000).attr("stroke-width", 0.0).remove();
+        }
+
+        // tooltip
+        var tooltipData = [];
+        var rent_price_data = [];
+        var m2_data = [];
+        var pred_data = [];
+        sub_data.forEach(function (d) {
+            if (draw_rent_index) rent_price_data.push({x: d['x'], y: d['y'], name: "Rent price index"});
+            if (draw_m2) m2_data.push({x: d['x'], y: d['m2'], name: "M2 index"});
+            if (draw_prediction) pred_data.push({x: d['x'], y: d['pred'], name: "Prediction"});
+        });
+        if (draw_rent_index) tooltipData.push(rent_price_data);
+        if (draw_m2) tooltipData.push(m2_data);
+        if (draw_prediction) tooltipData.push(pred_data);
+        mouseEffectGroup.selectAll('.effectPerLine').data(tooltipData).enter()
+            .append("g")
+                .attr("class", "effectPerLine")
+            .append("circle")
+                .attr("r", 3)
+                .style("stroke", "grey")
+                .style("fill", "none")
+                .style("stroke-width", "1px")
+                .style("opacity", "0");
+        d3.select("#tooltipArea")
+            .attr('width', width)
+            .attr('height', height)
+            .attr('fill', 'none')
+            .attr('pointer-events', 'all')
+            .on('mouseover', function () {
+                d3.selectAll("#tooltip").style('display', 'block')
+                d3.select(".verticalLine").style("opacity", "1");
+                d3.selectAll(".effectPerLine circle").style("opacity", "1");
+            })
+            .on('mouseout', function () {
+                d3.select(".verticalLine").style("opacity", "0");
+                d3.selectAll("#tooltip").style('display', 'none')
+                d3.selectAll(".effectPerLine circle").style("opacity", "0");
+                d3.selectAll(".effectPerLine text").style("opacity", "0");
+            })
+            .on('mousemove', function () {
+                var mouse = d3.mouse(this)
+                // line update
+                d3.selectAll(".effectPerLine")
+                    .attr("transform", d => {
+                        var xDate = x.invert(mouse[0]);
+                        var bisector = d3.bisector(function (d) {return d.x;}).left;
+                        var idx = bisector(d, xDate) - 1;
+                        d3.select(".verticalLine")
+                            .attr("d", function () {return "M" + x(d[idx].x) + "," + (height) + " " + x(d[idx].x) + "," + 0;});
+                        return "translate(" + x(d[idx].x) + "," + y(d[idx].y) + ")";
+                    });
+                //content update
+                contents = []
+                tooltipData.map(d => {
+                    var xDate = x.invert(mouse[0]);
+                    var bisector = d3.bisector(function (d) {return d.x;}).left;
+                    var idx = bisector(d, xDate) - 1;
+                    contents.push({
+                        name: d[idx].name,
+                        date: d[idx].x,
+                        y: d[idx].y,
+                        year: d[idx].x.getFullYear(),
+                        month: d[idx].x.getMonth() + 1
+                    })
+                })
+                if (contents[0].month < 10) {
+                    contents[0].month = '0' + contents[0].month;
+                }
+                tooltip.html(contents[0].year + "/" + contents[0].month)
+                    .style('left', (d3.event.pageX + 20).toString() + "px")
+                    .style('top', (d3.event.pageY - 20).toString() + "px")
+                    .style('font-size', (12).toString() + "px")
+                    .style('display', 'block')
+                    .selectAll().data(contents).enter()
+                    .append('div')
+                        .style('color', 'grey')
+                        .style('font-size', (11).toString() + "px")
+                        .html(d => {return " - " + d.name + ": " + d.y.toFixed(2);})
+            })
+    }
+</script>
+</body>
+</html>
